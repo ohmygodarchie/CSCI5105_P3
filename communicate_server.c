@@ -5,17 +5,65 @@
  */
 
 #include "communicate.h"
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 //global nodelist 
 // global int load
-// global char[120] this_peer_dir
-// global filelist
+char this_peer_dir[] = {"tempname"};
+FileList filelist;
 // global char[120] server_type
 
-// void scan(char *dir){
-	//fileList 
-	// for each file in dir
-// }
+void scan(char *dir){
+	struct dirent *pDirent;
+    DIR *pDir;
+
+    pDir = opendir(this_peer_dir);
+    if(pDir == NULL){
+        printf("Cannot open directory %s.\n", this_peer_dir);
+        return;
+    }
+
+    printf("Opened directory %s.\n", this_peer_dir);
+
+    struct stat sb;
+
+    int i = 0;
+    while((pDirent = readdir(pDir)) != NULL){
+        if(strcmp(pDirent->d_name, "..") != 0 && strcmp(pDirent->d_name, ".") != 0){
+            //printf("[%s]\n", pDirent->d_name);
+            file thisFile;
+            strcpy(thisFile.name, pDirent->d_name);
+            char filePath[256];
+            strcpy(filePath, this_peer_dir);
+            strcat(filePath, "/");
+            strcat(filePath, pDirent->d_name);
+
+            if(stat(filePath, &sb) == -1){
+                perror("stat");
+            }
+            else{
+                thisFile.size = (int) sb.st_size;
+                filelist.files[i] = thisFile;
+                i++;
+            }
+			if(i == 50) break;
+        }
+    }
+	filelist.fileAmount = i;
+
+    closedir(pDir);
+
+    for(int j = 0; j < filelist.fileAmount; j++){
+        printf("File: %s of size %d bytes.\n", filelist.files[j].name, filelist.files[j].size);
+    }
+    
+    return;
+}
 
 // void download_thread(void *arg){
 	// get the file name

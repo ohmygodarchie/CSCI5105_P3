@@ -23,6 +23,7 @@ typedef struct file file;
 
 struct FileList {
 	file files[50];
+	int fileAmount;
 };
 typedef struct FileList FileList;
 
