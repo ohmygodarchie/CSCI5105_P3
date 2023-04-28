@@ -100,6 +100,7 @@ typedef struct send_thread_args{
 } send_thread_args;
 typedef struct download_thread_args{
 	int sender_port;
+	char *sender_ip;
 	char *filename;
 } download_thread_args;
 
@@ -157,7 +158,7 @@ void scan(char *dir){
 
 void* download_thread(void *arg){
 	int *sockfd = (int *) arg;
-	load++;
+	load++; //MIGHT NEED TO LOCK THIS
 	int client_socket;
 	ssize_t len;
 	struct sockaddr_in remote_addr;
@@ -165,25 +166,23 @@ void* download_thread(void *arg){
 	int file_size;
 	FILE *received_file;
 	int remain_data = 0;
-	
+
 	download_thread_args *args = (download_thread_args *) arg;
-	int sender_port = args->sender_port;
 
 	/* Zeroing remote_addr struct */
 	memset(&remote_addr, 0, sizeof(remote_addr));
 
 	/* Construct remote_addr struct */
 	remote_addr.sin_family = AF_INET;
-	inet_pton(AF_INET, "127.0.0.1", &(remote_addr.sin_addr));
-	remote_addr.sin_port = htons(sender_port);
+	inet_pton(AF_INET, args->sender_ip, &(remote_addr.sin_addr));
+	remote_addr.sin_port = htons(args->sender_port);
 
 	/* Create client socket */
 	client_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (client_socket == -1)
 	{
-			fprintf(stderr, "Error creating socket");
-
-			exit(EXIT_FAILURE);
+		fprintf(stderr, "Error creating socket");
+		exit(EXIT_FAILURE);
 	}
 
 	/* Connect to the server */
@@ -199,12 +198,11 @@ void* download_thread(void *arg){
 	file_size = atoi(buffer);
 	//fprintf(stdout, "\nFile size : %d\n", file_size);
 
-	received_file = fopen(FILENAME, "w");
+	received_file = fopen(args->filename, "w");
 	if (received_file == NULL)
 	{
-			fprintf(stderr, "Failed to open file foo");
-
-			exit(EXIT_FAILURE);
+		fprintf(stderr, "Failed to open file foo");
+		exit(EXIT_FAILURE);
 	}
 
 	remain_data = file_size;
@@ -378,6 +376,7 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 		pthread_t thread;
 		download_thread_args *args = (download_thread_args *) malloc(sizeof(download_thread_args));
 		args->sender_port = download_result;
+		args->sender_ip = peer->ip;
 		args->filename = filename;
 		pthread_create(&thread, NULL, &download_thread, (void *) args); //this arguement should be the port number to download from
 	
