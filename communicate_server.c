@@ -165,14 +165,17 @@ void* download_thread(void *arg){
 	int file_size;
 	FILE *received_file;
 	int remain_data = 0;
+	
+	download_thread_args *args = (download_thread_args *) arg;
+	int sender_port = args->sender_port;
 
 	/* Zeroing remote_addr struct */
 	memset(&remote_addr, 0, sizeof(remote_addr));
 
 	/* Construct remote_addr struct */
 	remote_addr.sin_family = AF_INET;
-	inet_pton(AF_INET, SERVER_ADDRESS, &(remote_addr.sin_addr));
-	remote_addr.sin_port = htons(PORT_NUMBER);
+	inet_pton(AF_INET, "127.0.0.1", &(remote_addr.sin_addr));
+	remote_addr.sin_port = htons(sender_port);
 
 	/* Create client socket */
 	client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -373,7 +376,10 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 			return -1;
 		}
 		pthread_t thread;
-		pthread_create(&thread, NULL, &download_thread, (void *) download_result); //this arguement should be the port number to download from
+		download_thread_args *args = (download_thread_args *) malloc(sizeof(download_thread_args));
+		args->sender_port = download_result;
+		args->filename = filename;
+		pthread_create(&thread, NULL, &download_thread, (void *) args); //this arguement should be the port number to download from
 	
 	}
 	else if (strcmp(send_token, "send") != 0){
@@ -419,7 +425,6 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 		printf("args->filename: %s\n", args->filename);
 
 		pthread_create(&thread, NULL, &send_thread, (void *)args); 
-        
         
 		result = args->sockfd;
         return &result;
