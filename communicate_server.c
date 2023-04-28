@@ -11,9 +11,89 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <pthread.h>
 
 //global nodelist 
-// global int load
+
+//------------------------------- CLIENT CREATE -------------------------------
+CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
+	//printf("creating connection with ip %s, port %s\n", con_server_ip, con_server_port);
+
+	// create this servers socket 
+	// note, this server acts as a client to other servers
+	// and has client connection "objects" for them
+	int sockfd;
+	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+		perror("socket creation failed");
+		return NULL;
+	}
+	
+	// fill in information about the given server
+	struct sockaddr_in servaddr;
+	memset(&servaddr, 0, sizeof(servaddr));
+	   
+	servaddr.sin_family = AF_INET;
+	int server_port_int = atoi(con_server_port);
+	servaddr.sin_port = htons(server_port_int);
+
+	//fill in the IP address as it's binary representation
+	if (inet_pton(AF_INET, con_server_ip, &servaddr.sin_addr) <= 0) {
+		printf("Invalid IP address\n");
+		close(sockfd);
+		return NULL;
+	}
+
+	//setup the timeout for rpc calls
+	struct timeval wait;
+	memset(&wait, 0, sizeof(wait));
+	wait.tv_sec = 2;
+
+	// create the object
+	CLIENT *clnt = clntudp_create (&servaddr, COMMUNICATE_PROG, COMMUNICATE_VERSION, wait, &sockfd);
+	if (clnt == NULL) {
+		clnt_pcreateerror (con_server_ip);
+		return NULL;
+	}
+
+	return clnt;
+}
+
+
+
+// ------------------------------ SERVER RPC SETUP ------------------------------
+static struct timeval TIMEOUT = { 25, 0 };
+NodeList *
+find_1(char *filename,  CLIENT *clnt)
+{
+	static NodeList clnt_res;
+
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	if (clnt_call (clnt, Find,
+		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+}
+
+int *
+download_1(char *filename,  CLIENT *clnt)
+{
+	static int clnt_res;
+
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	if (clnt_call (clnt, Download,
+		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+}
+// ------------------------------ SERVER RPC SETUP ------------------------------
+
+int load = 0;
 char this_peer_dir[] = {"tempname"};
 FileList filelist;
 // global char[120] server_type
@@ -65,18 +145,18 @@ void scan(char *dir){
     return;
 }
 
-// void download_thread(void *arg){
+void* download_thread(void *arg){
 	// get the file name
 	// get the peer ip and port
 	// get the file from the peer
 	// update the file list
 	// call scan
-//}
+}
 
-// node* peer_select(NodeList *list){
+Node* peer_select(NodeList *list){
 	// select a peer from the list based on load and latency
 	// return the peer
-// }
+}
 
 // void read_config(){
 	//hardcoded file name/path
@@ -112,6 +192,42 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 	 */
 
 	//after download, call scan
+
+	NodeList find_list = find_1(filename, trackingserver);
+	if(find_list == NULL){
+		printf("Error: find_1 returned NULL.\n");
+		return -1;
+	}
+	Node* peer = peer_select(&find_list);
+
+
+	if (peer== NULL){
+		printf("Error: peer_select returned NULL.\n");
+		return -1;
+	}
+	//setup connection to peer
+	CLIENT *clnt = setup_client(peer->ip, peer->port);
+	if(clnt == NULL){
+		printf("Error: setup_client returned NULL.\n");
+		return -1;
+	}
+	
+
+	
+
+
+
+	//download file from peer
+	//choose a peer from the list based on load and latency
+
+
+
+	// if found
+	// load++;
+	// spawn a thread to download the file
+
+	//else
+	// return -1
 
 	return &result;
 }
