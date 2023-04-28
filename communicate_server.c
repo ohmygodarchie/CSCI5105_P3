@@ -6,6 +6,7 @@
 
 #include "communicate.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -91,7 +92,16 @@ download_1(char *filename,  CLIENT *clnt)
 	}
 	return (&clnt_res);
 }
-// ------------------------------ SERVER RPC SETUP ------------------------------
+// ------------------------------ END SERVER RPC SETUP ------------------------------
+
+typedef struct send_thread_args{
+	int sockfd;
+	char *filename;
+} send_thread_args;
+typedef struct download_thread_args{
+	int sender_port;
+	char *filename;
+} download_thread_args;
 
 int load = 0;
 char this_peer_dir[] = {"tempname"};
@@ -146,11 +156,150 @@ void scan(char *dir){
 }
 
 void* download_thread(void *arg){
-	// get the file name
-	// get the peer ip and port
-	// get the file from the peer
-	// update the file list
-	// call scan
+	int *sockfd = (int *) arg;
+	load++;
+	int client_socket;
+	ssize_t len;
+	struct sockaddr_in remote_addr;
+	char buffer[BUFSIZ];
+	int file_size;
+	FILE *received_file;
+	int remain_data = 0;
+
+	/* Zeroing remote_addr struct */
+	memset(&remote_addr, 0, sizeof(remote_addr));
+
+	/* Construct remote_addr struct */
+	remote_addr.sin_family = AF_INET;
+	inet_pton(AF_INET, SERVER_ADDRESS, &(remote_addr.sin_addr));
+	remote_addr.sin_port = htons(PORT_NUMBER);
+
+	/* Create client socket */
+	client_socket = socket(AF_INET, SOCK_STREAM, 0);
+	if (client_socket == -1)
+	{
+			fprintf(stderr, "Error creating socket");
+
+			exit(EXIT_FAILURE);
+	}
+
+	/* Connect to the server */
+	if (connect(client_socket, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) == -1)
+	{
+			fprintf(stderr, "Error on connect");
+
+			exit(EXIT_FAILURE);
+	}
+
+	/* Receiving file size */
+	recv(client_socket, buffer, BUFSIZ, 0);
+	file_size = atoi(buffer);
+	//fprintf(stdout, "\nFile size : %d\n", file_size);
+
+	received_file = fopen(FILENAME, "w");
+	if (received_file == NULL)
+	{
+			fprintf(stderr, "Failed to open file foo");
+
+			exit(EXIT_FAILURE);
+	}
+
+	remain_data = file_size;
+
+	while ((remain_data > 0) && ((len = recv(client_socket, buffer, BUFSIZ, 0)) > 0))
+	{
+			fwrite(buffer, sizeof(char), len, received_file);
+			remain_data -= len;
+			fprintf(stdout, "Receive %d bytes and we hope :- %d bytes\n", len, remain_data);
+	}
+	fclose(received_file);
+
+	close(client_socket);
+
+	return 0; //test
+}
+
+void* send_thread(void* arg){
+	/* Listening to incoming connections */
+	int server_socket, peer_socket, fd;
+	struct sockaddr_in server_addr, peer_addr;
+	socklen_t sock_len;
+	int sent_bytes = 0;
+	char file_size[256];
+	ssize_t len;
+	int remain_data;
+	struct stat file_stat;
+	int offset;
+	char *filename_token;
+	load++;
+
+	send_thread_args *args = (send_thread_args *) arg;
+	server_socket = args->sockfd;
+	filename_token = args->filename;
+
+	if ((listen(server_socket, 5)) == -1)
+        {
+                fprintf(stderr, "Error on listen");
+
+                exit(EXIT_FAILURE);
+        }
+
+        fd = open(filename_token, O_RDONLY);
+        if (fd == -1)
+        {
+                fprintf(stderr, "Error opening file");
+
+                exit(EXIT_FAILURE);
+        }
+
+        /* Get file stats */
+        if (fstat(fd, &file_stat) < 0)
+        {
+                fprintf(stderr, "Error fstat");
+
+                exit(EXIT_FAILURE);
+        }
+
+        fprintf(stdout, "File Size: \n%d bytes\n", file_stat.st_size);
+
+        sock_len = sizeof(struct sockaddr_in);
+        /* Accepting incoming peers */
+        peer_socket = accept(server_socket, (struct sockaddr *)&peer_addr, &sock_len);
+        if (peer_socket == -1)
+        {
+                fprintf(stderr, "Error on accept");
+
+                exit(EXIT_FAILURE);
+        }
+        fprintf(stdout, "Accept peer --> %s\n", inet_ntoa(peer_addr.sin_addr));
+
+        sprintf(file_size, "%d", file_stat.st_size);
+
+        /* Sending file size */
+        len = send(peer_socket, file_size, sizeof(file_size), 0);
+        if (len < 0)
+        {
+              fprintf(stderr, "Error on sending greetings" );
+
+              exit(EXIT_FAILURE);
+        }
+
+        fprintf(stdout, "Server sent %d bytes for the size\n", len);
+
+        offset = 0;
+        remain_data = file_stat.st_size;
+        /* Sending file data */
+        while (((sent_bytes = sendfile(peer_socket, fd, &offset, BUFSIZ)) > 0) && (remain_data > 0))
+        {
+                fprintf(stdout, "1. Server sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+                remain_data -= sent_bytes;
+                fprintf(stdout, "2. Server sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+        }
+
+        close(peer_socket);
+        close(server_socket);
+		pthread_exit(NULL);
+
 }
 
 Node* peer_select(NodeList *list){
@@ -192,35 +341,94 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 	 */
 
 	//after download, call scan
+	//split file name by space if there is a space
 
-	NodeList find_list = find_1(filename, trackingserver);
-	if(find_list == NULL){
-		printf("Error: find_1 returned NULL.\n");
-		return -1;
-	}
-	Node* peer = peer_select(&find_list);
+	char* send_token = strtok(filename, " ");
+	if (strcmp(send_token, "send") == 0){
+		NodeList find_list = find_1(filename, trackingserver);
+		if(find_list == NULL){
+			printf("Error: find_1 returned NULL.\n");
+			return -1;
+		}
+		Node* peer = peer_select(&find_list);
 
 
-	if (peer== NULL){
-		printf("Error: peer_select returned NULL.\n");
-		return -1;
-	}
-	//setup connection to peer
-	CLIENT *clnt = setup_client(peer->ip, peer->port);
-	if(clnt == NULL){
-		printf("Error: setup_client returned NULL.\n");
-		return -1;
-	}
+		if (peer== NULL){
+			printf("Error: peer_select returned NULL.\n");
+			return -1;
+		}
+		//setup connection to peer
+		CLIENT *clnt = setup_client(peer->ip, peer->port);
+		if(clnt == NULL){
+			printf("Error: setup_client returned NULL.\n");
+			return -1;
+		}
+
+		//call download on peer
+		// add "send filename" to download_1 to indicate to send a file
+
+		int download_result = download_1(filename, clnt);
+		if(download_result == NULL){
+			printf("Error: download_1 returned NULL.\n");
+			return -1;
+		}
+		pthread_t thread;
+		pthread_create(&thread, NULL, &download_thread, (void *) download_result); //this arguement should be the port number to download from
 	
+	}
+	else if (strcmp(send_token, "send") != 0){
+		char* filename_token = strtok(NULL, " ");
+		if (filename_token == NULL){
+			printf("Error: strtok returned NULL.\n");
+			return -1;
+		}
+		//start sending a file on a port
+		
+		//set up port
+		int server_socket;
+        socklen_t       sock_len;
+        struct sockaddr_in      server_addr;
 
-	
+        /* Create server socket */
+        server_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (server_socket == -1)
+        {
+			fprintf(stderr, "Error creating socket" );
+			exit(EXIT_FAILURE);
+        }
+
+        /* Zeroing server_addr struct */
+        memset(&server_addr, 0, sizeof(server_addr));
+        /* Construct server_addr struct */
+        server_addr.sin_family = AF_INET;
+        inet_pton(AF_INET, "127.0.0.1", &(server_addr.sin_addr));
+        server_addr.sin_port = htons(0);
+
+        /* Bind */
+        if ((bind(server_socket, (struct sockaddr *)&server_addr, sizeof(struct sockaddr))) == -1)
+        {
+                fprintf(stderr, "Error on bind");
+                exit(EXIT_FAILURE);
+        }
+
+		pthread_t thread;
+		send_thread_args *args = malloc(sizeof(send_thread_args));
+		args->filename = filename_token;
+		args->sockfd = server_addr.sin_port;
+		printf("args->sockfd: %d\n", args->sockfd);
+		printf("args->filename: %s\n", args->filename);
+
+		pthread_create(&thread, NULL, &send_thread, (void *)args); 
+        
+        
+		result = args->sockfd;
+        return &result;
 
 
+	}
 
 	//download file from peer
 	//choose a peer from the list based on load and latency
-
-
 
 	// if found
 	// load++;
