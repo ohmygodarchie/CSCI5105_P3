@@ -13,11 +13,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <sys/sendfile.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 //global nodelist 
+CLIENT* trackingserver;
 
 //------------------------------- CLIENT CREATE -------------------------------
-CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
+CLIENT *setup_connection(char *con_server_ip, int con_server_port) {
 	//printf("creating connection with ip %s, port %s\n", con_server_ip, con_server_port);
 
 	// create this servers socket 
@@ -34,7 +40,7 @@ CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
 	memset(&servaddr, 0, sizeof(servaddr));
 	   
 	servaddr.sin_family = AF_INET;
-	int server_port_int = atoi(con_server_port);
+	int server_port_int = con_server_port;
 	servaddr.sin_port = htons(server_port_int);
 
 	//fill in the IP address as it's binary representation
@@ -62,36 +68,36 @@ CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
 
 
 // ------------------------------ SERVER RPC SETUP ------------------------------
-// static struct timeval TIMEOUT = { 25, 0 };
-// NodeList *
-// find_1(char *filename,  CLIENT *clnt)
-// {
-// 	static NodeList clnt_res;
+static struct timeval TIMEOUT = { 25, 0 };
+NodeList *
+find_1(char *filename,  CLIENT *clnt)
+{
+ 	static NodeList clnt_res;
 
-// 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
-// 	if (clnt_call (clnt, Find,
-// 		(xdrproc_t) xdr_char, (caddr_t) &filename,
-// 		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
-// 		TIMEOUT) != RPC_SUCCESS) {
-// 		return (NULL);
-// 	}
-// 	return (&clnt_res);
-// }
+ 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+ 	if (clnt_call (clnt, Find,
+ 		(xdrproc_t) xdr_char, (caddr_t) &filename,
+ 		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
+ 		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+}
 
-// int *
-// download_1(char *filename,  CLIENT *clnt)
-// {
-// 	static int clnt_res;
+int *
+download_1(char *filename,  CLIENT *clnt)
+{
+ 	static int clnt_res;
 
-// 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
-// 	if (clnt_call (clnt, Download,
-// 		(xdrproc_t) xdr_char, (caddr_t) &filename,
-// 		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
-// 		TIMEOUT) != RPC_SUCCESS) {
-// 		return (NULL);
-// 	}
-// 	return (&clnt_res);
-// }
+ 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+ 	if (clnt_call (clnt, Download,
+ 		(xdrproc_t) xdr_char, (caddr_t) &filename,
+ 		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
+ 		TIMEOUT) != RPC_SUCCESS) {
+ 		return (NULL);
+ 	}
+ 	return (&clnt_res);
+}
 // ------------------------------ END SERVER RPC SETUP ------------------------------
 
 typedef struct send_thread_args{
@@ -211,7 +217,7 @@ void* download_thread(void *arg){
 	{
 			fwrite(buffer, sizeof(char), len, received_file);
 			remain_data -= len;
-			fprintf(stdout, "Receive %d bytes and we hope :- %d bytes\n", len, remain_data);
+			fprintf(stdout, "Receive %ld bytes and we hope :- %d bytes\n", len, remain_data);
 	}
 	fclose(received_file);
 
@@ -245,7 +251,7 @@ void* send_thread(void* arg){
                 exit(EXIT_FAILURE);
         }
 
-        fd = open(filename_token, "r");
+        fd = open(filename_token, O_RDONLY);
         if (fd == -1)
         {
                 fprintf(stderr, "Error opening file");
@@ -261,7 +267,7 @@ void* send_thread(void* arg){
                 exit(EXIT_FAILURE);
         }
 
-        fprintf(stdout, "File Size: \n%d bytes\n", file_stat.st_size);
+        fprintf(stdout, "File Size: \n%ld bytes\n", file_stat.st_size);
 
         sock_len = sizeof(struct sockaddr_in);
         /* Accepting incoming peers */
@@ -274,7 +280,7 @@ void* send_thread(void* arg){
         }
         fprintf(stdout, "Accept peer --> %s\n", inet_ntoa(peer_addr.sin_addr));
 
-        sprintf(file_size, "%d", file_stat.st_size);
+        sprintf(file_size, "%ld", file_stat.st_size);
 
         /* Sending file size */
         len = send(peer_socket, file_size, sizeof(file_size), 0);
@@ -285,12 +291,12 @@ void* send_thread(void* arg){
               exit(EXIT_FAILURE);
         }
 
-        fprintf(stdout, "Server sent %d bytes for the size\n", len);
+        fprintf(stdout, "Server sent %ld bytes for the size\n", len);
 
         offset = 0;
         remain_data = file_stat.st_size;
         /* Sending file data */
-        while (((sent_bytes = sendfile(peer_socket, fd, &offset, BUFSIZ)) > 0) && (remain_data > 0))
+        while (((sent_bytes = sendfile(peer_socket, fd, (long int *)&offset, BUFSIZ)) > 0) && (remain_data > 0))
         {
                 fprintf(stdout, "1. Server sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
                 remain_data -= sent_bytes;
@@ -316,7 +322,7 @@ Node* peer_select(NodeList *list){
 NodeList *
 find_1_svc(char *filename,  struct svc_req *rqstp)
 {
-	static NodeList  result;
+	static NodeList result;
 
 	/*
 	 * insert server code here
@@ -335,7 +341,7 @@ find_1_svc(char *filename,  struct svc_req *rqstp)
 int *
 download_1_svc(char *filename,  struct svc_req *rqstp)
 {
-	static int  result;
+	static int result;
 
 	/*
 	 * insert server code here
@@ -346,38 +352,40 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 
 	char* send_token = strtok(filename, " ");
 	if (strcmp(send_token, "send") != 0){
-		NodeList find_list = find_1(filename, trackingserver);
-		if(find_list == NULL){
+		NodeList find_list = *find_1(filename, trackingserver);
+		if(&find_list == NULL){
 			printf("Error: find_1 returned NULL.\n");
-			return -1;
+			result = -1;
+			return &result;
 		}
 		Node* peer = peer_select(&find_list);
 
 
 		if (peer== NULL){
 			printf("Error: peer_select returned NULL.\n");
-			return -1;
+			result = -1;
+			return &result;
 		}
 		//setup connection to peer
-		CLIENT *clnt = setup_client(peer->ip, peer->port);
+		CLIENT *clnt = setup_connection(peer->ip, peer->port);
 		if(clnt == NULL){
-			printf("Error: setup_client returned NULL.\n");
-			result =-1;
-			return result;
+			printf("Error: setup_connection returned NULL.\n");
+			result = -1;
+			return &result;
 		}
 
 		//call download on peer
 		// add "send filename" to download_1 to indicate to send a file
 
-		int download_result = download_1(filename, clnt);
+		int* download_result = download_1(filename, clnt);
 		if(download_result == NULL){
 			printf("Error: download_1 returned NULL.\n");
-			result =-1;
-			return result;
+			result = -1;
+			return &result;
 		}
 		pthread_t thread;
 		download_thread_args *args = (download_thread_args *) malloc(sizeof(download_thread_args));
-		args->sender_port = download_result;
+		args->sender_port = *download_result;
 		args->sender_ip = peer->ip;
 		args->filename = filename;
 		pthread_create(&thread, NULL, &download_thread, (void *) args); //this arguement should be the port number to download from
@@ -387,8 +395,8 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 		char* filename_token = strtok(NULL, " ");
 		if (filename_token == NULL){
 			printf("Error: strtok returned NULL.\n");
-			result =-1;
-			return result;
+			result = -1;
+			return &result;
 		}
 		//start sending a file on a port
 		
@@ -448,7 +456,7 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 }
 
 int *
-getload_1_svc(struct svc_req *rqstp)
+getload_1_svc(void *vp, struct svc_req *rqstp)
 {
 	static int  result;
 
@@ -466,7 +474,7 @@ getload_1_svc(struct svc_req *rqstp)
 }
 
 FileList *
-updatelist_1_svc(struct svc_req *rqstp)
+updatelist_1_svc(void *vp, struct svc_req *rqstp)
 {
 	static FileList  result;
 

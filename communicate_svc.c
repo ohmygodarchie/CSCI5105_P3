@@ -16,30 +16,6 @@
 #define SIG_PF void(*)(int)
 #endif
 
-static NodeList *
-_find_1 (char  *argp, struct svc_req *rqstp)
-{
-	return (find_1_svc(*argp, rqstp));
-}
-
-static int *
-_download_1 (char  *argp, struct svc_req *rqstp)
-{
-	return (download_1_svc(*argp, rqstp));
-}
-
-static int *
-_getload_1 (void  *argp, struct svc_req *rqstp)
-{
-	return (getload_1_svc(rqstp));
-}
-
-static FileList *
-_updatelist_1 (void  *argp, struct svc_req *rqstp)
-{
-	return (updatelist_1_svc(rqstp));
-}
-
 static void
 communicate_prog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 {
@@ -59,25 +35,25 @@ communicate_prog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 	case Find:
 		_xdr_argument = (xdrproc_t) xdr_char;
 		_xdr_result = (xdrproc_t) xdr_NodeList;
-		local = (char *(*)(char *, struct svc_req *)) _find_1;
+		local = (char *(*)(char *, struct svc_req *)) find_1_svc;
 		break;
 
 	case Download:
 		_xdr_argument = (xdrproc_t) xdr_char;
 		_xdr_result = (xdrproc_t) xdr_int;
-		local = (char *(*)(char *, struct svc_req *)) _download_1;
+		local = (char *(*)(char *, struct svc_req *)) download_1_svc;
 		break;
 
 	case GetLoad:
 		_xdr_argument = (xdrproc_t) xdr_void;
 		_xdr_result = (xdrproc_t) xdr_int;
-		local = (char *(*)(char *, struct svc_req *)) _getload_1;
+		local = (char *(*)(char *, struct svc_req *)) getload_1_svc;
 		break;
 
 	case UpdateList:
 		_xdr_argument = (xdrproc_t) xdr_void;
 		_xdr_result = (xdrproc_t) xdr_FileList;
-		local = (char *(*)(char *, struct svc_req *)) _updatelist_1;
+		local = (char *(*)(char *, struct svc_req *)) updatelist_1_svc;
 		break;
 
 	default:

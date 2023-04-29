@@ -1,10 +1,12 @@
 struct file {
     char name[120];
+    char checksum[200];
     int size;
-    int id;
 };
+
 struct FileList {
     file files[50];
+    int fileAmount;
 };
 
 struct Node {

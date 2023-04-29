@@ -14,9 +14,10 @@ xdr_file (XDR *xdrs, file *objp)
 	 if (!xdr_vector (xdrs, (char *)objp->name, 120,
 		sizeof (char), (xdrproc_t) xdr_char))
 		 return FALSE;
-	 if (!xdr_int (xdrs, &objp->size))
+	 if (!xdr_vector (xdrs, (char *)objp->checksum, 200,
+		sizeof (char), (xdrproc_t) xdr_char))
 		 return FALSE;
-	 if (!xdr_int (xdrs, &objp->id))
+	 if (!xdr_int (xdrs, &objp->size))
 		 return FALSE;
 	return TRUE;
 }
@@ -29,6 +30,8 @@ xdr_FileList (XDR *xdrs, FileList *objp)
 	int i;
 	 if (!xdr_vector (xdrs, (char *)objp->files, 50,
 		sizeof (file), (xdrproc_t) xdr_file))
+		 return FALSE;
+	 if (!xdr_int (xdrs, &objp->fileAmount))
 		 return FALSE;
 	return TRUE;
 }
