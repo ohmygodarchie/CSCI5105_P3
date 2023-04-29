@@ -12,11 +12,13 @@ communicate_prog_1(char *host)
 {
 	CLIENT *clnt;
 	NodeList  *result_1;
-	char find_1_filename;
+	char *find_1_filename;
 	int  *result_2;
-	char download_1_filename;
+	char *download_1_filename;
 	int  *result_3;
 	FileList  *result_4;
+	void *vp1;
+	void *vp2;
 
 #ifndef	DEBUG
 	clnt = clnt_create (host, COMMUNICATE_PROG, COMMUNICATE_VERSION, "udp");
@@ -34,11 +36,11 @@ communicate_prog_1(char *host)
 	if (result_2 == (int *) NULL) {
 		clnt_perror (clnt, "call failed");
 	}
-	result_3 = getload_1(clnt);
+	result_3 = getload_1(vp1, clnt);
 	if (result_3 == (int *) NULL) {
 		clnt_perror (clnt, "call failed");
 	}
-	result_4 = updatelist_1(clnt);
+	result_4 = updatelist_1(vp2, clnt);
 	if (result_4 == (FileList *) NULL) {
 		clnt_perror (clnt, "call failed");
 	}

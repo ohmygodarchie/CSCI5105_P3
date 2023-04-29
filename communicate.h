@@ -16,8 +16,8 @@ extern "C" {
 
 struct file {
 	char name[120];
+	char checksum[200];
 	int size;
-	int checksum[200];
 };
 typedef struct file file;
 
@@ -45,17 +45,17 @@ typedef struct NodeList NodeList;
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define Find 1
-extern  NodeList * find_1(char , CLIENT *);
-extern  NodeList * find_1_svc(char , struct svc_req *);
+extern  NodeList * find_1(char *, CLIENT *);
+extern  NodeList * find_1_svc(char *, struct svc_req *);
 #define Download 2
-extern  int * download_1(char , CLIENT *);
-extern  int * download_1_svc(char , struct svc_req *);
+extern  int * download_1(char *, CLIENT *);
+extern  int * download_1_svc(char *, struct svc_req *);
 #define GetLoad 3
-extern  int * getload_1(CLIENT *);
-extern  int * getload_1_svc(struct svc_req *);
+extern  int * getload_1(void *, CLIENT *);
+extern  int * getload_1_svc(void *, struct svc_req *);
 #define UpdateList 4
-extern  FileList * updatelist_1(CLIENT *);
-extern  FileList * updatelist_1_svc(struct svc_req *);
+extern  FileList * updatelist_1(void *, CLIENT *);
+extern  FileList * updatelist_1_svc(void *, struct svc_req *);
 extern int communicate_prog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */

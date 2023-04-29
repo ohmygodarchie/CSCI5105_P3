@@ -10,13 +10,13 @@
 static struct timeval TIMEOUT = { 25, 0 };
 
 NodeList *
-find_1(char *filename,  CLIENT *clnt)
+find_1(char *argp, CLIENT *clnt)
 {
 	static NodeList clnt_res;
 
 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
 	if (clnt_call (clnt, Find,
-		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_char, (caddr_t) argp,
 		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
@@ -25,13 +25,13 @@ find_1(char *filename,  CLIENT *clnt)
 }
 
 int *
-download_1(char *filename,  CLIENT *clnt)
+download_1(char *argp, CLIENT *clnt)
 {
 	static int clnt_res;
 
 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
 	if (clnt_call (clnt, Download,
-		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_char, (caddr_t) argp,
 		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
@@ -40,12 +40,13 @@ download_1(char *filename,  CLIENT *clnt)
 }
 
 int *
-getload_1(CLIENT *clnt)
+getload_1(void *argp, CLIENT *clnt)
 {
 	static int clnt_res;
 
 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
-	 if (clnt_call (clnt, GetLoad, (xdrproc_t) xdr_void, (caddr_t) NULL,
+	if (clnt_call (clnt, GetLoad,
+		(xdrproc_t) xdr_void, (caddr_t) argp,
 		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
@@ -54,12 +55,13 @@ getload_1(CLIENT *clnt)
 }
 
 FileList *
-updatelist_1(CLIENT *clnt)
+updatelist_1(void *argp, CLIENT *clnt)
 {
 	static FileList clnt_res;
 
 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
-	 if (clnt_call (clnt, UpdateList, (xdrproc_t) xdr_void, (caddr_t) NULL,
+	if (clnt_call (clnt, UpdateList,
+		(xdrproc_t) xdr_void, (caddr_t) argp,
 		(xdrproc_t) xdr_FileList, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
