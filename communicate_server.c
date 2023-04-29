@@ -68,7 +68,7 @@ find_1(char *filename,  CLIENT *clnt)
 {
 	static NodeList clnt_res;
 
-	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));i
 	if (clnt_call (clnt, Find,
 		(xdrproc_t) xdr_char, (caddr_t) &filename,
 		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
@@ -359,7 +359,7 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 			return -1;
 		}
 		//setup connection to peer
-		CLIENT *clnt = setup_client(peer->ip, peer->port);
+		CLIENT *clnt = setup_connection(peer->ip, peer->port);
 		if(clnt == NULL){
 			printf("Error: setup_client returned NULL.\n");
 			result =-1;

@@ -17,7 +17,7 @@ extern "C" {
 struct file {
 	char name[120];
 	int size;
-	int checksum;
+	int checksum[200];
 };
 typedef struct file file;
 
