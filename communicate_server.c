@@ -359,7 +359,9 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 			return -1;
 		}
 		//setup connection to peer
-		CLIENT *clnt = setup_connection(peer->ip, peer->port);
+		char * port_str = (char *) malloc(sizeof(char) * 6);
+		sprintf(port_str, "%d", peer->port);
+		CLIENT *clnt = setup_connection(peer->ip, port_str);
 		if(clnt == NULL){
 			printf("Error: setup_client returned NULL.\n");
 			result =-1;
@@ -369,7 +371,7 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 		//call download on peer
 		// add "send filename" to download_1 to indicate to send a file
 
-		int download_result = download_1(filename, clnt);
+		int download_result = download_1(filename, clnt); // need to do "send filename"
 		if(download_result == NULL){
 			printf("Error: download_1 returned NULL.\n");
 			result =-1;
@@ -383,7 +385,7 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 		pthread_create(&thread, NULL, &download_thread, (void *) args); //this arguement should be the port number to download from
 	
 	}
-	else if (strcmp(send_token, "send") == 0){
+	else if (strcmp(send_token, "send") == 0){ //if we are sending the file
 		char* filename_token = strtok(NULL, " ");
 		if (filename_token == NULL){
 			printf("Error: strtok returned NULL.\n");
