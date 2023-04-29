@@ -72,6 +72,7 @@ static struct timeval TIMEOUT = { 25, 0 };
 NodeList *
 find_1(char *filename,  CLIENT *clnt)
 {
+<<<<<<< HEAD
  	static NodeList clnt_res;
 
  	memset((char *)&clnt_res, 0, sizeof(clnt_res));
@@ -79,6 +80,15 @@ find_1(char *filename,  CLIENT *clnt)
  		(xdrproc_t) xdr_char, (caddr_t) &filename,
  		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
  		TIMEOUT) != RPC_SUCCESS) {
+=======
+	static NodeList clnt_res;
+
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));i
+	if (clnt_call (clnt, Find,
+		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+>>>>>>> 480a6c5a0c78a6a16daf7271c9d23774a047f111
 		return (NULL);
 	}
 	return (&clnt_res);
@@ -87,6 +97,7 @@ find_1(char *filename,  CLIENT *clnt)
 int *
 download_1(char *filename,  CLIENT *clnt)
 {
+<<<<<<< HEAD
  	static int clnt_res;
 
  	memset((char *)&clnt_res, 0, sizeof(clnt_res));
@@ -97,6 +108,18 @@ download_1(char *filename,  CLIENT *clnt)
  		return (NULL);
  	}
  	return (&clnt_res);
+=======
+	static int clnt_res;
+
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	if (clnt_call (clnt, Download,
+		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+>>>>>>> 480a6c5a0c78a6a16daf7271c9d23774a047f111
 }
 // ------------------------------ END SERVER RPC SETUP ------------------------------
 
