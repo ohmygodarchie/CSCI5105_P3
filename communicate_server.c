@@ -62,36 +62,36 @@ CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
 
 
 // ------------------------------ SERVER RPC SETUP ------------------------------
-// static struct timeval TIMEOUT = { 25, 0 };
-// NodeList *
-// find_1(char *filename,  CLIENT *clnt)
-// {
-// 	static NodeList clnt_res;
+static struct timeval TIMEOUT = { 25, 0 };
+NodeList *
+find_1(char *filename,  CLIENT *clnt)
+{
+	static NodeList clnt_res;
 
-// 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
-// 	if (clnt_call (clnt, Find,
-// 		(xdrproc_t) xdr_char, (caddr_t) &filename,
-// 		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
-// 		TIMEOUT) != RPC_SUCCESS) {
-// 		return (NULL);
-// 	}
-// 	return (&clnt_res);
-// }
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	if (clnt_call (clnt, Find,
+		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+}
 
-// int *
-// download_1(char *filename,  CLIENT *clnt)
-// {
-// 	static int clnt_res;
+int *
+download_1(char *filename,  CLIENT *clnt)
+{
+	static int clnt_res;
 
-// 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
-// 	if (clnt_call (clnt, Download,
-// 		(xdrproc_t) xdr_char, (caddr_t) &filename,
-// 		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
-// 		TIMEOUT) != RPC_SUCCESS) {
-// 		return (NULL);
-// 	}
-// 	return (&clnt_res);
-// }
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	if (clnt_call (clnt, Download,
+		(xdrproc_t) xdr_char, (caddr_t) &filename,
+		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+}
 // ------------------------------ END SERVER RPC SETUP ------------------------------
 
 typedef struct send_thread_args{
