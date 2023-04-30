@@ -529,6 +529,41 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 		args->sender_port = *download_result;
 		args->sender_ip = peer->ip;
 		args->filename = filename;
+
+		int theirPort = args->sender_port;
+
+		int latency = 0;
+		// open the file:
+
+		FILE *fp;
+
+		fp = fopen("latency.txt", "r");
+		if (fp == NULL) {
+			printf("Failed to find latency. Could not open latency.txt\n");
+		}
+
+		int max_line_size = 255;
+		char linebuf[max_line_size];
+
+
+		while(fgets(linebuf, sizeof(linebuf), fp) != NULL){
+			char *incoming_server_ip = strtok(linebuf, " ");
+			int incoming_server_port = atoi(strtok(NULL, " "));
+			char *outgoing_server_ip = strtok(NULL, " ");
+			int outgoing_server_port = atoi(strtok(NULL, " "));
+			int connection_latency = atoi(strtok(NULL, " "));
+			
+			if(strcmp(server_port_str, incoming_server_ip) == 0 && server_port == incoming_server_port && strcmp(args->sender_ip, outgoing_server_ip) == 0 && theirPort == outgoing_server_port){
+				latency = connection_latency;
+				break;
+			}
+		}
+
+		printf("Latency: %d\n", latency);
+		// Insert latency here.
+
+		fclose(fp);
+
 		pthread_create(&thread, NULL, &download_thread, (void *) args); //this arguement should be the port number to download from
 	
 	}
