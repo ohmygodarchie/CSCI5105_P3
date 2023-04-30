@@ -19,8 +19,21 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-//global nodelist 
+NodeList *node_list;
+
 CLIENT* trackingserver;
+
+int server_port;
+char *server_port_str;
+char *server_ip;
+char *dir;
+int num_normal_nodes;
+CLIENT **servers;
+NodeList *global_node_list;
+CLIENT *tracking_server;
+
+int amPrimary = FALSE;
+
 
 //------------------------------- CLIENT CREATE -------------------------------
 CLIENT *setup_connection(char *con_server_ip, int con_server_port) {
@@ -65,6 +78,134 @@ CLIENT *setup_connection(char *con_server_ip, int con_server_port) {
 	return clnt;
 }
 
+int setup_connections() { //most of this stuff is for the tracking server but every node needs to know if it is the primary or not
+	// open the file:
+
+	FILE *fp;
+
+	fp = fopen("nodes.txt", "r");
+	if (fp == NULL) {
+		printf("Failed to setup connections, could not open nodes.txt\n");
+		return FALSE;
+	}
+
+	int max_line_size = 255;
+	char linebuf[max_line_size];
+
+
+	// count the number of lines:
+
+	int num_lines = 0;
+	while(fgets(linebuf, sizeof(linebuf), fp)){
+		num_lines++;
+	}
+
+	rewind(fp);
+
+
+	// malloc space for connections
+
+	// subtract 1 because primary con is dealt with separately
+
+	num_normal_nodes = num_lines - 1;
+	servers = malloc(num_normal_nodes * sizeof(CLIENT *));
+	global_node_list = malloc(sizeof(NodeList));
+
+	if (servers == NULL) {
+		printf("malloc failed\n");
+		fclose(fp);
+		return FALSE;
+	}
+
+
+	// get connection information from file:
+
+	bool_t foundPrimary = FALSE;
+
+	for(int i = 0; i < num_lines; i++) {
+		// each line contains a server ip and port, and then may contain the word Primary.
+		fgets(linebuf, sizeof(linebuf), fp);
+
+		char *con_server_ip = strtok(linebuf, " ");
+
+		char *con_server_port_str = strtok(NULL, " ");
+		int con_server_port_int = atoi(con_server_port_str);
+
+		char *con_server_option = strtok(NULL, " ");
+
+		//printf("%s %s", con_server_ip, con_server_port_str);
+
+		// two cases either this is the primary line or it's a normal line
+		if ( (con_server_option != NULL) && ((strncmp(con_server_option, "tracking", 8) == 0) || (strncmp(con_server_option, "tracking", 8) == 0)) ) {
+			foundPrimary = TRUE;
+
+			// two cases, either we are the primary or we must be able to connect to the primary
+			if ( (strcmp(server_ip, con_server_ip) == 0) && (server_port == con_server_port_int) ) {
+				amPrimary = TRUE;
+			} else {
+				tracking_server = setup_connection(con_server_ip, con_server_port_int);
+				if (tracking_server == NULL) {
+					clnt_pcreateerror (con_server_ip);
+					free(servers);
+					free(global_node_list);
+					fclose(fp);
+					return FALSE;
+				}
+			}
+
+		} else {
+			// two cases, either we are the normal server or we must be able to connect to the normal server
+			if ( (strcmp(server_ip, con_server_ip) == 0) && (server_port == con_server_port_int) ) {
+				continue;
+			} else {
+				servers[i] = setup_connection(con_server_ip, con_server_port_int);
+				if (servers[i] == NULL) {
+					clnt_pcreateerror (con_server_ip);
+				}
+				// save info about servers i
+				Node node;
+				strcpy(node.ip, con_server_ip);
+
+				// saved server port may have a newline
+				node.port = con_server_port_int;
+				global_node_list->nodes[i] = node;
+
+			}
+		}
+
+	} 
+
+	// check if file didn't have primary
+	if (foundPrimary == FALSE) {
+		printf("nodes.txt does not have a tracking server info\n");
+		free(servers);
+		free(global_node_list);
+		fclose(fp);
+		return FALSE;
+	}
+
+	fclose(fp);
+
+	return TRUE;
+}
+
+// initialization fcn, which is called from main in communicate_svc
+void initialize(char *_server_ip, char *_server_port_str, char *_dir) {
+	// set state to given args
+
+	server_port_str = _server_port_str;
+	server_port = atoi(_server_port_str);
+	server_ip = _server_ip;
+
+	// TODO: ADD CHECK FOR VALID DIR
+
+	// setup the connections and primary information TODO
+	if (setup_connections() == FALSE) {
+		printf("failed to setup connections to servers\n");
+		exit(EXIT_FAILURE);
+	}
+
+}
 
 
 // ------------------------------ SERVER RPC SETUP ------------------------------

@@ -68,6 +68,10 @@ CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
 void cmd_loop() {
 	int usrBuf_len = 200;
 	char usrBuf[usrBuf_len];
+	NodeList *result_1;
+	int *result_2;
+	int *result_3;
+	FileList *result_4;
 
 	// setup rpc args and vars.
 	//cmd loop
@@ -110,7 +114,7 @@ void cmd_loop() {
 				continue;
 			}
 
-			NodeList* result_1 = find_1(text, clnt);
+			// NodeList* result_1 = find_1(text, clnt);
 			
 			if (result_1 == (NodeList *)NULL) {
 				clnt_perror (clnt, "call failed");
@@ -158,11 +162,7 @@ void cmd_loop() {
 
 			// rpc call
 
-
-
-		
-
-			int * result_2 = getload_1(peer_ip, peer_port, clnt);
+			// int * result_2 = getload_1(peer_ip, peer_port, clnt);
 
 			if (result_2 == (int *) NULL) {
 				clnt_perror (clnt, "call failed");
@@ -189,8 +189,9 @@ void cmd_loop() {
 
 			int peer_port = atoi(peer_port_str);
 
-			FileList * result_4 = updatelist_1(peer_ip, peer_port, clnt); // need to update to take in these args
+			// FileList * result_4 = updatelist_1(peer_ip, peer_port, clnt); // need to update to take in these args
 			// display rpc result
+
 
 			if (result_4 == (FileList *) NULL) {
 				clnt_perror (clnt, "call failed");
