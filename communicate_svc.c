@@ -105,6 +105,20 @@ communicate_prog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 int
 main (int argc, char **argv)
 {
+	if (argc < 4) {
+		printf ("usage: %s server_ip server_port dir\n", argv[0]);
+		exit (1);
+	}
+
+	char *server_ip = argv[1];
+
+	char *server_port_str = argv[2];
+	int server_port_int = atoi(server_port_str);
+
+	char *dir = argv[3];
+
+
+	initialize(server_ip, server_port_str, dir);
 	register SVCXPRT *transp;
 
 	pmap_unset (COMMUNICATE_PROG, COMMUNICATE_VERSION);
