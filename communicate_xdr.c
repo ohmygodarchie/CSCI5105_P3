@@ -63,5 +63,27 @@ xdr_NodeList (XDR *xdrs, NodeList *objp)
 	 if (!xdr_vector (xdrs, (char *)objp->nodes, 50,
 		sizeof (Node), (xdrproc_t) xdr_Node))
 		 return FALSE;
+	 if (!xdr_int (xdrs, &objp->numNodes))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
+xdr_getload_1_argument (XDR *xdrs, getload_1_argument *objp)
+{
+	 if (!xdr_string (xdrs, &objp->ip, ~0))
+		 return FALSE;
+	 if (!xdr_int (xdrs, &objp->port))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
+xdr_updatelist_1_argument (XDR *xdrs, updatelist_1_argument *objp)
+{
+	 if (!xdr_string (xdrs, &objp->ip, ~0))
+		 return FALSE;
+	 if (!xdr_int (xdrs, &objp->port))
+		 return FALSE;
 	return TRUE;
 }

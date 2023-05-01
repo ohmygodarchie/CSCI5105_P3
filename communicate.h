@@ -37,8 +37,21 @@ typedef struct Node Node;
 
 struct NodeList {
 	Node nodes[50];
+	int numNodes;
 };
 typedef struct NodeList NodeList;
+
+struct getload_1_argument {
+	char *ip;
+	int port;
+};
+typedef struct getload_1_argument getload_1_argument;
+
+struct updatelist_1_argument {
+	char *ip;
+	int port;
+};
+typedef struct updatelist_1_argument updatelist_1_argument;
 
 #define COMMUNICATE_PROG 0x20000002
 #define COMMUNICATE_VERSION 1
@@ -51,11 +64,11 @@ extern  NodeList * find_1_svc(char *, struct svc_req *);
 extern  int * download_1(char *, CLIENT *);
 extern  int * download_1_svc(char *, struct svc_req *);
 #define GetLoad 3
-extern  int * getload_1(void *, CLIENT *);
-extern  int * getload_1_svc(void *, struct svc_req *);
+extern  int * getload_1(char *, int , CLIENT *);
+extern  int * getload_1_svc(char *, int , struct svc_req *);
 #define UpdateList 4
-extern  FileList * updatelist_1(void *, CLIENT *);
-extern  FileList * updatelist_1_svc(void *, struct svc_req *);
+extern  FileList * updatelist_1(char *, int , CLIENT *);
+extern  FileList * updatelist_1_svc(char *, int , struct svc_req *);
 extern int communicate_prog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
@@ -81,12 +94,16 @@ extern  bool_t xdr_file (XDR *, file*);
 extern  bool_t xdr_FileList (XDR *, FileList*);
 extern  bool_t xdr_Node (XDR *, Node*);
 extern  bool_t xdr_NodeList (XDR *, NodeList*);
+extern  bool_t xdr_getload_1_argument (XDR *, getload_1_argument*);
+extern  bool_t xdr_updatelist_1_argument (XDR *, updatelist_1_argument*);
 
 #else /* K&R C */
 extern bool_t xdr_file ();
 extern bool_t xdr_FileList ();
 extern bool_t xdr_Node ();
 extern bool_t xdr_NodeList ();
+extern bool_t xdr_getload_1_argument ();
+extern bool_t xdr_updatelist_1_argument ();
 
 #endif /* K&R C */
 

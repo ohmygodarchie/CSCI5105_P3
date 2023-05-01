@@ -4,7 +4,6 @@
  */
 
 #include "communicate.h"
-#include "communicate_server.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <rpc/pmap_clnt.h>
@@ -17,12 +16,38 @@
 #define SIG_PF void(*)(int)
 #endif
 
+static NodeList *
+_find_1 (char * *argp, struct svc_req *rqstp)
+{
+	return (find_1_svc(*argp, rqstp));
+}
+
+static int *
+_download_1 (char * *argp, struct svc_req *rqstp)
+{
+	return (download_1_svc(*argp, rqstp));
+}
+
+static int *
+_getload_1 (getload_1_argument *argp, struct svc_req *rqstp)
+{
+	return (getload_1_svc(argp->ip, argp->port, rqstp));
+}
+
+static FileList *
+_updatelist_1 (updatelist_1_argument *argp, struct svc_req *rqstp)
+{
+	return (updatelist_1_svc(argp->ip, argp->port, rqstp));
+}
+
 static void
 communicate_prog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 {
 	union {
-		char find_1_arg;
-		char download_1_arg;
+		char *find_1_arg;
+		char *download_1_arg;
+		getload_1_argument getload_1_arg;
+		updatelist_1_argument updatelist_1_arg;
 	} argument;
 	char *result;
 	xdrproc_t _xdr_argument, _xdr_result;
@@ -34,27 +59,27 @@ communicate_prog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 		return;
 
 	case Find:
-		_xdr_argument = (xdrproc_t) xdr_char;
+		_xdr_argument = (xdrproc_t) xdr_wrapstring;
 		_xdr_result = (xdrproc_t) xdr_NodeList;
-		local = (char *(*)(char *, struct svc_req *)) find_1_svc;
+		local = (char *(*)(char *, struct svc_req *)) _find_1;
 		break;
 
 	case Download:
-		_xdr_argument = (xdrproc_t) xdr_char;
+		_xdr_argument = (xdrproc_t) xdr_wrapstring;
 		_xdr_result = (xdrproc_t) xdr_int;
-		local = (char *(*)(char *, struct svc_req *)) download_1_svc;
+		local = (char *(*)(char *, struct svc_req *)) _download_1;
 		break;
 
 	case GetLoad:
-		_xdr_argument = (xdrproc_t) xdr_void;
+		_xdr_argument = (xdrproc_t) xdr_getload_1_argument;
 		_xdr_result = (xdrproc_t) xdr_int;
-		local = (char *(*)(char *, struct svc_req *)) getload_1_svc;
+		local = (char *(*)(char *, struct svc_req *)) _getload_1;
 		break;
 
 	case UpdateList:
-		_xdr_argument = (xdrproc_t) xdr_void;
+		_xdr_argument = (xdrproc_t) xdr_updatelist_1_argument;
 		_xdr_result = (xdrproc_t) xdr_FileList;
-		local = (char *(*)(char *, struct svc_req *)) updatelist_1_svc;
+		local = (char *(*)(char *, struct svc_req *)) _updatelist_1;
 		break;
 
 	default:
@@ -80,22 +105,6 @@ communicate_prog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 int
 main (int argc, char **argv)
 {
-
-	if (argc < 4) {
-		printf ("usage: %s server_ip server_port dir\n", argv[0]);
-		exit (1);
-	}
-	
-	char *server_ip = argv[1];
-
-	char *server_port_str = argv[2];
-	int server_port_int = atoi(server_port_str);
-
-	char *dir = argv[3];
-
-
-	initialize(server_ip, server_port_str, dir);
-
 	register SVCXPRT *transp;
 
 	pmap_unset (COMMUNICATE_PROG, COMMUNICATE_VERSION);

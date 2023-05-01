@@ -632,7 +632,7 @@ download_1_svc(char *filename,  struct svc_req *rqstp)
 }
 
 int *
-getload_1_svc(void *vp, struct svc_req *rqstp)
+getload_1_svc(char *ip, int port, struct svc_req *rqstp)
 {
 	static int  result;
 
@@ -650,7 +650,7 @@ getload_1_svc(void *vp, struct svc_req *rqstp)
 }
 
 FileList *
-updatelist_1_svc(void *vp, struct svc_req *rqstp)
+updatelist_1_svc(char *ip, int port, struct svc_req *rqstp)
 {
 	static FileList  result;
 
