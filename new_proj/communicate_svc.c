@@ -4,7 +4,6 @@
  */
 
 #include "communicate.h"
-#include "communicate_server.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <rpc/pmap_clnt.h>
@@ -12,15 +11,6 @@
 #include <memory.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-#include <errno.h>
-#include <netdb.h>
-#include <pthread.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <arpa/inet.h>
 
 #ifndef SIG_PF
 #define SIG_PF void(*)(int)
@@ -121,45 +111,16 @@ main (int argc, char **argv)
 	}
 
 	char *server_ip = argv[1];
-
 	char *server_port_str = argv[2];
 	int server_port_int = atoi(server_port_str);
-
 	char *dir = argv[3];
-
-
 	initialize(server_ip, server_port_str, dir);
 
 	register SVCXPRT *transp;
 
 	pmap_unset (COMMUNICATE_PROG, COMMUNICATE_VERSION);
-	//setup rpc server on given port:
 
-    // create the socket
-	int sockfd;
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-        perror("socket creation failed");
-        exit(EXIT_FAILURE);
-    }
-
-
-	// fill in server information
-
-	struct sockaddr_in servaddr;   
-    memset(&servaddr, 0, sizeof(servaddr));
-
-    servaddr.sin_family = AF_INET; // IPv4
-    servaddr.sin_addr.s_addr = INADDR_ANY;
-    servaddr.sin_port = htons(server_port_int);
-       
-    // Bind the socket on the given port
-    if ( bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0 ) {
-		close(sockfd);
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-	
-	transp = svcudp_create(sockfd);
+	transp = svcudp_create(RPC_ANYSOCK);
 	if (transp == NULL) {
 		fprintf (stderr, "%s", "cannot create udp service.");
 		exit(1);

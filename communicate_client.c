@@ -25,10 +25,11 @@ CLIENT *clnt;
 
 // setup the rpc connection object:
 CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
-
+	
 	// create this servers socket 
 	// note, this server acts as a client to other servers
 	// and has client connection "objects" for them
+	printf("%s  %s\n", con_server_ip, con_server_port);
 	int sockfd;
 	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
 		perror("socket creation failed");
@@ -53,7 +54,7 @@ CLIENT *setup_connection(char *con_server_ip, char *con_server_port) {
 	//setup the timeout for rpc calls
 	struct timeval wait;
 	memset(&wait, 0, sizeof(wait));
-	wait.tv_sec = 10;
+	wait.tv_sec = 30;
 
 	// create the object
 	CLIENT *clnt = clntudp_create (&servaddr, COMMUNICATE_PROG, COMMUNICATE_VERSION, wait, &sockfd);
@@ -114,12 +115,18 @@ void cmd_loop() {
 				continue;
 			}
 
-			// NodeList* result_1 = find_1(text, clnt);
+			result_1 = find_1(text, clnt);
 			
 			if (result_1 == (NodeList *)NULL) {
 				clnt_perror (clnt, "call failed");
 			} 
 			//need to print
+			else {
+				for (int i =0; i<result_1->numNodes; i++) {
+					printf("%s %d\n", result_1->nodes[i].ip, result_1->nodes[i].port);
+				}
+			}
+
 
 		} else if (strcmp(token, "download") == 0){
 			//bug just get whole text
@@ -162,7 +169,7 @@ void cmd_loop() {
 
 			// rpc call
 
-			// int * result_2 = getload_1(peer_ip, peer_port, clnt);
+			result_2 = getload_1(peer_ip, peer_port, clnt);
 
 			if (result_2 == (int *) NULL) {
 				clnt_perror (clnt, "call failed");
@@ -188,8 +195,8 @@ void cmd_loop() {
 			}
 
 			int peer_port = atoi(peer_port_str);
-
-			// FileList * result_4 = updatelist_1(peer_ip, peer_port, clnt); // need to update to take in these args
+			result_4 = malloc(sizeof(FileList));
+			result_4 = updatelist_1(peer_ip, peer_port, clnt); // need to update to take in these args
 			// display rpc result
 
 
@@ -198,6 +205,9 @@ void cmd_loop() {
 			} else {
 				printf("updated successfully\n");
 				//print the list
+				for (int i = 0; i < result_4->fileAmount; i++) {
+					printf("%s\n", result_4->files[i].name);
+				}
 			}
 
 		} else {
@@ -224,6 +234,10 @@ main (int argc, char *argv[])
 	char *directory = argv[3];
 
 	clnt = setup_connection(con_server_ip, con_server_port_str);
+	if (clnt == NULL) {
+		clnt_pcreateerror (con_server_ip);
+		exit(EXIT_FAILURE);
+	}
 
 	cmd_loop();
 
