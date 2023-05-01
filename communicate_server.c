@@ -18,6 +18,21 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <rpc/pmap_clnt.h>
+#include <string.h>
+#include <memory.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#include <errno.h>
+#include <netdb.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/queue.h>
 
 
 CLIENT* trackingserver;
@@ -31,6 +46,8 @@ CLIENT **servers;
 NodeList *global_node_list;
 CLIENT *tracking_server;
 char this_peer_dir[128];
+int load = 0;
+FileList* filelist;
 
 int amPrimary = FALSE;
 
@@ -227,6 +244,7 @@ void initialize(char *_server_ip, char *_server_port_str, char *_dir) {
 	// else{
 	// 	printf("I am the tracking server.\n");
 	// }
+	filelist = malloc(sizeof(FileList));
 }
 
 
@@ -309,8 +327,6 @@ typedef struct download_thread_args{
 	int latency;
 } download_thread_args;
 
-int load = 0;
-FileList filelist;
 // global char[120] server_type
 
 void scan(char *dir){
@@ -334,8 +350,8 @@ void scan(char *dir){
             file thisFile;
             strcpy(thisFile.name, pDirent->d_name);
             char filePath[256];
-            //strcpy(filePath, this_peer_dir);
-            //strcat(filePath, "/");
+            strcpy(filePath, this_peer_dir);
+            strcat(filePath, "/");
             strcat(filePath, pDirent->d_name);
 
             if(stat(filePath, &sb) == -1){
@@ -343,18 +359,18 @@ void scan(char *dir){
             }
             else{
                 thisFile.size = (int) sb.st_size;
-                filelist.files[i] = thisFile;
+                filelist->files[i] = thisFile;
                 i++;
             }
 			if(i == 50) break;
         }
     }
-	filelist.fileAmount = i;
+	filelist->fileAmount = i;
 
     closedir(pDir);
 
-    for(int j = 0; j < filelist.fileAmount; j++){
-        printf("File: %s of size %d bytes.\n", filelist.files[j].name, filelist.files[j].size);
+    for(int j = 0; j < filelist->fileAmount; j++){
+        printf("File: %s of size %d bytes.\n", filelist->files[j].name, filelist->files[j].size);
     }
     
     return;
@@ -572,7 +588,7 @@ find_1_svc(char *filename,  struct svc_req *rqstp)
 	/*
 	 * insert server code here
 	 */
-	FileList* temp_files = malloc(sizeof(FileList));
+	
 	printf("Finding file: %s\n", filename);
 
 	if (strcmp(filename, "init")==0){
@@ -590,7 +606,7 @@ find_1_svc(char *filename,  struct svc_req *rqstp)
 			else {
 				global_node_list->nodes[i].load = *temp;
 			}
-
+			FileList* temp_files;
 			temp_files = updatelist_1(global_node_list->nodes[i].ip, global_node_list->nodes[i].port, servers[i]);
 			if (temp_files == NULL){
 				//set node status
@@ -632,22 +648,27 @@ find_1_svc(char *filename,  struct svc_req *rqstp)
 				}
 				else {
 					global_node_list->nodes[i].load = *temp;
+					printf("Node %s:%d has load %d\n", global_node_list->nodes[i].ip, global_node_list->nodes[i].port, global_node_list->nodes[i].load);
 				}
-
+				FileList* temp_files;
 				temp_files = updatelist_1(global_node_list->nodes[i].ip, global_node_list->nodes[i].port, servers[i]);
 				if (temp_files == NULL){
 					//set node status
 					global_node_list->nodes[i].load = -1;
+					printf("Node %s:%d is down in updateList\n", global_node_list->nodes[i].ip, global_node_list->nodes[i].port);
 					continue;
 				}
-				global_node_list->nodes[i].files = *temp_files;
-				
-				for (int j=0; j<global_node_list->nodes[i].files.fileAmount; j++){
-					if (strcmp(global_node_list->nodes[i].files.files[j].name, filename) == 0){
-						result.nodes[result.numNodes] = global_node_list->nodes[i];
-						result.numNodes++;
+				else{
+					global_node_list->nodes[i].files = *temp_files;
+					printf("Node %s:%d has %d files\n", global_node_list->nodes[i].ip, global_node_list->nodes[i].port, global_node_list->nodes[i].files.fileAmount);
+					for (int j=0; j<global_node_list->nodes[i].files.fileAmount; j++){
+						if (strcmp(global_node_list->nodes[i].files.files[j].name, filename) == 0){
+							result.nodes[result.numNodes] = global_node_list->nodes[i];
+							result.numNodes++;
+						}
 					}
 				}
+				
 			}
 			if (result.numNodes == 0){
 				//no nodes have the file
@@ -832,33 +853,34 @@ getload_1_svc(char *ip, int port, struct svc_req *rqstp)
 	 */
 
 	//find the node in the list
-	if (strcmp(ip, server_ip) == 0 && port == server_port){
-		result = load;
-		return &result;
-	}
-	for (int i=0; i<num_normal_nodes; i++){
-		if (strcmp(global_node_list->nodes[i].ip, ip) == 0 && global_node_list->nodes[i].port == port){
-			int *temp;
+	// if (strcmp(ip, server_ip) == 0 && port == server_port){
+	// 	result = load;
+	// 	return &result;
+	// }
+	// for (int i=0; i<num_normal_nodes; i++){
+	// 	if (strcmp(global_node_list->nodes[i].ip, ip) == 0 && global_node_list->nodes[i].port == port){
+	// 		int *temp;
 
-			temp = getload_1(ip, port, servers[i]);
-			if (temp == (int *)NULL){
-				result = -1;
-				global_node_list->nodes[i].load = -1; //set node status
-				return &result;
-			}
-			else if (*temp == -1){
-				result = -1;
-				return &result;
-			}
-			else {
-				result = *temp;
-				return &result;
-				break;
-			}
+	// 		temp = getload_1(ip, port, servers[i]);
+	// 		if (temp == (int *)NULL){
+	// 			result = -1;
+	// 			global_node_list->nodes[i].load = -1; //set node status
+	// 			return &result;
+	// 		}
+	// 		else if (*temp == -1){
+	// 			result = -1;
+	// 			return &result;
+	// 		}
+	// 		else {
+	// 			result = *temp;
+	// 			return &result;
+	// 			break;
+	// 		}
 			
-		}
-		result = -1;
-	}
+	// 	}
+	// 	result = -1;
+	// }
+	result =10;
 
 
 	return &result;
@@ -867,7 +889,8 @@ getload_1_svc(char *ip, int port, struct svc_req *rqstp)
 FileList *
 updatelist_1_svc(char *ip, int port, struct svc_req *rqstp)
 {
-	static FileList  result;
+	static FileList result;
+	memset(&result, 0, sizeof(result));
 	printf("Updating list for: %s %d\n", ip, port);
 
 	/*
@@ -877,34 +900,41 @@ updatelist_1_svc(char *ip, int port, struct svc_req *rqstp)
 	
 	if (strcmp(ip, server_ip) == 0 && port == server_port){
 		scan(dir);
-		result = filelist;
+		result.fileAmount = filelist->fileAmount;
+		
 		printf("Updated list for: %s %d\n", ip, port);
 		printf("File list:\n");
 		for (int i=0; i<result.fileAmount; i++){
+			strcpy(result.files[i].name, filelist->files[i].name);
 			printf("%s\n", result.files[i].name);
 		}
+		// printf("%d\n",(int)(FileList *)&result);
 		return &result;
 	}
-	for (int i=0; i<num_normal_nodes; i++){
-		if (strcmp(global_node_list->nodes[i].ip, ip) == 0 && global_node_list->nodes[i].port == port){
-			FileList *temp;
-			temp = updatelist_1(ip, port, servers[i]);
-			if (temp == NULL){
-				result.fileAmount = -1;
-				return &result;
-			}
-			else if (temp->fileAmount == -1){
-				result.fileAmount = -1;
-				return &result;
-			}
-			else {
-				result = *temp;
+	// else {
+	// 	for (int i=0; i<num_normal_nodes; i++){
+	// 		if (strcmp(global_node_list->nodes[i].ip, ip) == 0 && global_node_list->nodes[i].port == port){
+	// 			FileList *temp;
+	// 			temp = updatelist_1(ip, port, servers[i]);
+	// 			if (temp == NULL){
+	// 				result.fileAmount = -1;
+	// 				return &result;
+	// 			}
+	// 			else if (temp->fileAmount == -1){
+	// 				result.fileAmount = -1;
+	// 				return &result;
+	// 			}
+	// 			else {
+	// 				result = *temp;
 
-				return &result;
-			}
-			break;
-		}
-	}
+	// 				return &result;
+	// 			}
+	// 			break;
+	// 		}
+	// 	}
+	// }
+
+
 	
 
 	return &result;

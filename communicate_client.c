@@ -195,7 +195,6 @@ void cmd_loop() {
 			}
 
 			int peer_port = atoi(peer_port_str);
-			result_4 = malloc(sizeof(FileList));
 			result_4 = updatelist_1(peer_ip, peer_port, clnt); // need to update to take in these args
 			// display rpc result
 
