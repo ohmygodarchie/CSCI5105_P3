@@ -110,6 +110,7 @@ int setup_connections() { //most of this stuff is for the tracking server but ev
 	num_normal_nodes = num_lines - 1;
 	servers = malloc(num_normal_nodes * sizeof(CLIENT *));
 	global_node_list = malloc(sizeof(NodeList));
+	global_node_list->numNodes = 0;
 
 	if (servers == NULL) {
 		printf("malloc failed\n");
@@ -158,8 +159,8 @@ int setup_connections() { //most of this stuff is for the tracking server but ev
 			if ( (strcmp(server_ip, con_server_ip) == 0) && (server_port == con_server_port_int) ) {
 				continue;
 			} else {
-				servers[i] = setup_connection(con_server_ip, con_server_port_int);
-				if (servers[i] == NULL) {
+				servers[global_node_list->numNodes] = setup_connection(con_server_ip, con_server_port_int);
+				if (servers[global_node_list->numNodes] == NULL) {
 					clnt_pcreateerror (con_server_ip);
 				}
 				// save info about servers i
@@ -168,9 +169,13 @@ int setup_connections() { //most of this stuff is for the tracking server but ev
 
 				// saved server port may have a newline
 				node.port = con_server_port_int;
-				global_node_list->nodes[i] = node;
+				global_node_list->nodes[global_node_list->numNodes] = node;
+				global_node_list->numNodes++;
 
 			}
+		}
+		if (global_node_list->numNodes == num_normal_nodes){
+			printf("All nodes in the arr\n");
 		}
 
 	} 
@@ -213,13 +218,13 @@ static struct timeval TIMEOUT = { 25, 0 };
 NodeList *
 find_1(char *filename,  CLIENT *clnt)
 {
- 	static NodeList clnt_res;
+	static NodeList clnt_res;
 
- 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
- 	if (clnt_call (clnt, Find,
- 		(xdrproc_t) xdr_char, (caddr_t) &filename,
- 		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
- 		TIMEOUT) != RPC_SUCCESS) {
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	if (clnt_call (clnt, Find,
+		(xdrproc_t) xdr_wrapstring, (caddr_t) &filename,
+		(xdrproc_t) xdr_NodeList, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
 	return (&clnt_res);
@@ -228,17 +233,52 @@ find_1(char *filename,  CLIENT *clnt)
 int *
 download_1(char *filename,  CLIENT *clnt)
 {
- 	static int clnt_res;
+	static int clnt_res;
 
- 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
- 	if (clnt_call (clnt, Download,
- 		(xdrproc_t) xdr_char, (caddr_t) &filename,
- 		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
- 		TIMEOUT) != RPC_SUCCESS) {
- 		return (NULL);
- 	}
- 	return (&clnt_res);
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	if (clnt_call (clnt, Download,
+		(xdrproc_t) xdr_wrapstring, (caddr_t) &filename,
+		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
 }
+
+int *
+getload_1(char *ip, int port,  CLIENT *clnt)
+{
+	getload_1_argument arg;
+	static int clnt_res;
+
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	arg.ip = ip;
+	arg.port = port;
+	if (clnt_call (clnt, GetLoad, (xdrproc_t) xdr_getload_1_argument, (caddr_t) &arg,
+		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+}
+
+FileList *
+updatelist_1(char *ip, int port,  CLIENT *clnt)
+{
+	updatelist_1_argument arg;
+	static FileList clnt_res;
+
+	memset((char *)&clnt_res, 0, sizeof(clnt_res));
+	arg.ip = ip;
+	arg.port = port;
+	if (clnt_call (clnt, UpdateList, (xdrproc_t) xdr_updatelist_1_argument, (caddr_t) &arg,
+		(xdrproc_t) xdr_FileList, (caddr_t) &clnt_res,
+		TIMEOUT) != RPC_SUCCESS) {
+		return (NULL);
+	}
+	return (&clnt_res);
+}
+
 // ------------------------------ END SERVER RPC SETUP ------------------------------
 
 typedef struct send_thread_args{
@@ -452,7 +492,7 @@ void* send_thread(void* arg){
 
 Node* peer_select(NodeList *list){
 	// select a peer from the list based on load and latency
-	// return the peer
+
 }
 
 // void read_config(){
@@ -468,14 +508,41 @@ find_1_svc(char *filename,  struct svc_req *rqstp)
 	/*
 	 * insert server code here
 	 */
-	//if server_type == trackingserver
+	FileList* temp_files = malloc(sizeof(FileList));
 
-	// only called by peers to trackingserver
-	// return list of peers that have the file
-	// for loop updatelist across all peers
-	// 		update the global node list
-	// return list of peers that have the file
+	if (amPrimary == FALSE){
 
+		NodeList *find_list = malloc(sizeof(NodeList));
+		find_list = find_1(filename, trackingserver);
+		if (find_list == NULL){
+			//tracking server is down but we are not primary
+			//FAIL
+		}
+		result = *find_list;
+		return &result;
+	}
+	else{
+		for (int i=0; i<num_normal_nodes; i++){
+			//updates the file list for each node here we should check for status
+			
+			temp_files = updatelist_1(node_list->nodes[i].ip, node_list->nodes[i].port, servers[i]);
+			if (temp_files == NULL){
+				//set node status
+			}
+			node_list->nodes[i].files = *temp_files;
+			
+			for (int j=0; j<node_list->nodes[i].files.fileAmount; j++){
+				if (strcmp(node_list->nodes[i].files.files[j].name, filename) == 0){
+					result.nodes[result.numNodes] = node_list->nodes[i];
+					result.numNodes++;
+				}
+			}
+		}
+		if (result.numNodes == 0){
+			//no nodes have the file
+			return NULL;
+		}
+	}
 	return &result;
 }
 
@@ -639,6 +706,8 @@ getload_1_svc(char *ip, int port, struct svc_req *rqstp)
 	/*
 	 * insert server code here
 	 */
+
+	//find the node in the list
 
 	// lock the load variable
 	// read it 
